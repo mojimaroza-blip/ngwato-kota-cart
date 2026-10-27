@@ -1,0 +1,171 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ngwato Kota Hub - Order Online</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#fff8ef;color:#222}
+header{background:#202020;color:white;text-align:center;padding:25px}
+main{max-width:900px;margin:auto;padding:18px}
+.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.card,.cart{background:white;border:1px solid #ddd;border-radius:12px;padding:16px}
+h2{margin-top:24px}
+.price{font-size:22px;font-weight:bold;color:#b85b00}
+button{padding:10px 14px;border:0;border-radius:7px;cursor:pointer;font-weight:bold}
+.add{background:#f28c28}
+.qty button{background:#eee;padding:6px 10px}
+.checkout{background:#167d45;color:white;width:100%;margin-top:12px}
+input,select,textarea{box-sizing:border-box;width:100%;padding:11px;margin:6px 0 12px;border:1px solid #bbb;border-radius:6px}
+.cartrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #ddd}
+.total{font-size:22px;font-weight:bold;text-align:right;margin-top:15px}
+small{color:#666}
+</style>
+</head>
+<body>
+<header>
+<h1>🍔 Ngwato Kota Hub</h1>
+<p>Fresh Kota. Great Taste. Order Online!</p>
+</header>
+<main>
+<h2>Our Menu</h2>
+<div class="menu" id="menu"></div>
+
+<section class="cart">
+<h2>🛒 Your Shopping Cart</h2>
+<div id="cart">Your cart is empty.</div>
+<div class="total">Total: <span id="total">R0.00</span></div>
+
+<h2>Customer Details</h2>
+<form id="orderForm">
+<label>Full name *</label>
+<input id="name" required placeholder="Enter your name">
+
+<label>Phone number *</label>
+<input id="phone" type="tel" required placeholder="Your phone number">
+
+<label>Collection or delivery?</label>
+<select id="method" onchange="toggleAddress()">
+<option>Collection</option>
+<option>Delivery</option>
+</select>
+
+<div id="addressBox" style="display:none">
+<label>Delivery address *</label>
+<input id="address" placeholder="Enter delivery address">
+</div>
+
+<label>Special instructions</label>
+<textarea id="notes" placeholder="Any special requests?"></textarea>
+</form>
+
+<button class="checkout" onclick="placeOrder()">
+Prepare My Order
+</button>
+<p><small>This starter version sends orders through WhatsApp when you configure your business number. Online card payments are not connected yet.</small></p>
+</section>
+</main>
+
+<script>
+const products=[
+{name:"Classic Kota",price:20,desc:"Polony, vienna, chips, atchar and cheese"},
+{name:"Half Russian Kota",price:25,desc:"Classic ingredients plus half a Russian"},
+{name:"Full Russian Kota",price:30,desc:"Classic ingredients plus a full Russian"},
+{name:"Small Chips",price:20,desc:"Small portion of chips"},
+{name:"Medium Chips",price:25,desc:"Medium portion of chips"},
+{name:"Large Chips",price:30,desc:"Large portion of chips"}
+];
+
+const quantities=products.map(()=>0);
+const money=n=>"R"+n.toFixed(2);
+
+function render(){
+ document.getElementById("menu").innerHTML=products.map((p,i)=>`
+ <div class="card">
+ <h3>${p.name}</h3>
+ <p>${p.desc}</p>
+ <div class="price">${money(p.price)}</div>
+ <button class="add" onclick="change(${i},1)">Add to Cart</button>
+ </div>`).join("");
+
+ const selected=products.map((p,i)=>({...p,i,qty:quantities[i]}))
+ .filter(p=>p.qty>0);
+
+ document.getElementById("cart").innerHTML=selected.length?
+ selected.map(p=>`
+ <div class="cartrow">
+ <div><b>${p.name}</b><br>${money(p.price)} each</div>
+ <div class="qty">
+ <button onclick="change(${p.i},-1)">−</button>
+ ${p.qty}
+ <button onclick="change(${p.i},1)">+</button>
+ </div>
+ <b>${money(p.price*p.qty)}</b>
+ </div>`).join("")
+ :"Your cart is empty.";
+
+ document.getElementById("total").textContent=money(
+ products.reduce((sum,p,i)=>sum+p.price*quantities[i],0)
+ );
+}
+
+function change(i,amount){
+ quantities[i]=Math.max(0,quantities[i]+amount);
+ render();
+}
+
+function toggleAddress(){
+ const delivery=document.getElementById("method").value==="Delivery";
+ document.getElementById("addressBox").style.display=delivery?"block":"none";
+ document.getElementById("address").required=delivery;
+}
+
+function placeOrder(){
+ if(!quantities.some(q=>q>0)){
+  alert("Please add an item to your cart.");
+  return;
+ }
+ const form=document.getElementById("orderForm");
+ if(!form.reportValidity())return;
+
+ const name=document.getElementById("name").value.trim();
+ const phone=document.getElementById("phone").value.trim();
+ const method=document.getElementById("method").value;
+ const address=document.getElementById("address").value.trim();
+ const notes=document.getElementById("notes").value.trim();
+ const total=products.reduce((s,p,i)=>s+p.price*quantities[i],0);
+
+ const lines=products.map((p,i)=>quantities[i]>0?
+ `${quantities[i]} x ${p.name} = ${money(p.price*quantities[i])}`:null)
+ .filter(Boolean);
+
+ const message=[
+ "Hello Ngwato Kota Hub! I would like to order:",
+ ...lines,
+ `Total: ${money(total)}`,
+ `Name: ${name}`,
+ `Phone: ${phone}`,
+ `Order method: ${method}`,
+ address?`Address: ${address}`:"",
+ notes?`Instructions: ${notes}`:"",
+ "Please confirm my order and payment arrangements."
+ ].filter(Boolean).join("\n");
+
+ // Replace with your WhatsApp number: country code + number,
+ // digits only. South African numbers start with 27, not 0.
+ const businessNumber="YOUR_BUSINESS_WHATSAPP_NUMBER";
+
+ if(!/^\d{10,15}$/.test(businessNumber)){
+  alert("Your cart works! The owner must add the business WhatsApp number in the code before orders can be sent.");
+  return;
+ }
+
+ window.open("https://wa.me/"+businessNumber+
+ "?text="+encodeURIComponent(message),"_blank");
+}
+
+render();
+</script>
+</body>
+</html>
